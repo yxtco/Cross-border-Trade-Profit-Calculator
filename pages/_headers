@@ -1,0 +1,14 @@
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE
+  Access-Control-Allow-Headers: Content-Type, Authorization
+  Access-Control-Max-Age: 86400
+
+/*.html
+  Cache-Control: public, max-age=300, s-maxage=600
+/*.ico
+  Cache-Control: public, max-age=86400, immutable
+/*.js
+  Cache-Control: public, max-age=86400, immutable
+/*.css
+  Cache-Control: public, max-age=86400, immutable

@@ -1,0 +1,36 @@
+/* TailwindCSS配置 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义样式 */
+@layer utilities {
+    .transition-all-300 {
+        transition: all 300ms ease-in-out;
+    }
+    .input-focus {
+        @apply focus:ring-2 focus:ring-primary focus:border-primary;
+    }
+    .card-hover {
+        @apply hover:shadow-lg transition-all duration-300;
+    }
+    .btn-primary {
+        @apply bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-all duration-300;
+    }
+    .btn-secondary {
+        @apply bg-secondary text-dark px-4 py-2 rounded-md hover:bg-secondary/90 transition-all duration-300;
+    }
+    .btn-success {
+        @apply bg-success text-white px-4 py-2 rounded-md hover:bg-success/90 transition-all duration-300;
+    }
+    .btn-danger {
+        @apply bg-danger text-white px-4 py-2 rounded-md hover:bg-danger/90 transition-all duration-300;
+    }
+    .input-error {
+        @apply border-danger focus:ring-danger focus:border-danger;
+    }
+    .label-required::after {
+        content: "*";
+        @apply text-danger ml-1;
+    }
+}

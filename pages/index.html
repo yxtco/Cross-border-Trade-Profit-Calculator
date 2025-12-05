@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨境贸易利润计算器 | Cloudflare KV版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a56db',
+                        secondary: '#e2e8f0',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        info: '#3b82f6',
+                        light: '#f8fafc',
+                        dark: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .input-focus {
+                @apply focus:ring-2 focus:ring-primary focus:border-primary;
+            }
+            .card-hover {
+                @apply hover:shadow-lg transition-all duration-300;
+            }
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-all duration-300;
+            }
+            .btn-secondary {
+                @apply bg-secondary text-dark px-4 py-2 rounded-md hover:bg-secondary/90 transition-all duration-300;
+            }
+            .btn-success {
+                @apply bg-success text-white px-4 py-2 rounded-md hover:bg-success/90 transition-all duration-300;
+            }
+            .btn-danger {
+                @apply bg-danger text-white px-4 py-2 rounded-md hover:bg-danger/90 transition-all duration-300;
+            }
+            .input-error {
+                @apply border-danger focus:ring-danger focus:border-danger;
+            }
+            .label-required::after {
+                content: "*";
+                @apply text-danger ml-1;
+            }
+        }
+    </style>
+    <link rel="icon" href="/assets/icon.ico" type="image/x-icon">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-calculator text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-gray-800">跨境贸易利润计算器</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="exchange-rate-display" class="bg-primary/10 text-primary px-3 py-1 rounded-full flex items-center">
+                    <i class="fa fa-money mr-2"></i>
+                    <span class="font-medium">USD/CNY: </span>
+                    <span id="current-rate" class="font-bold ml-1">7.0639</span>
+                    <button id="refresh-rate" class="ml-2 text-primary hover:text-primary/80 transition-colors">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+                <div class="relative group">
+                    <button id="storage-btn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i class="fa fa-cloud text-xl"></i>
+                    </button>
+                    <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block z-10">
+                        <button id="sync-to-cloud" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fa fa-cloud-upload mr-2"></i>同步到云端
+                        </button>
+                        <button id="sync-from-cloud" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fa fa-cloud-download mr-2"></i>从云端同步
+                        </button>
+                        <button id="export-local-backup" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fa fa-download mr-2"></i>导出本地备份
+                        </button>
+                        <button id="import-local-backup" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fa fa-upload mr-2"></i>导入本地备份
+                        </button>
+                    </div>
+                </div>
+                <button id="settings-btn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-cog text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧输入区 -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 汇率管理卡片 -->
+                <div class="bg-white rounded-lg shadow-card p-6 card-hover">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fa fa-exchange text-primary mr-2"></i>
+                            汇率管理
+                        </h2>
+                        <div class="flex space-x-2">
+                            <button id="auto-rate-btn" class="btn-primary text-sm flex items-center">
+                                <i class="fa fa-download mr-1"></i>
+                                获取实时汇率
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label for="exchange-rate" class="block text-sm font-medium text-gray-700 label-required">
+                                美元兑人民币汇率
+                            </label>
+                            <div class="relative">
+                                <input type="number" id="exchange-rate" 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                    step="0.0001" min="0" value="7.0639" required>
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span class="text-gray-500">USD/CNY</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                汇率精度支持小数点后4位
+                            </p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700">
+                                汇率更新时间
+                            </label>
+                            <div class="bg-gray-50 px-4 py-2 border border-gray-200 rounded-md">
+                                <p id="rate-update-time" class="text-sm text-gray-600">
+                                    2025-12-04 10:23:05
+                                </p>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                点击"获取实时汇率"按钮更新最新汇率
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成本输入卡片 -->
+                <div class="bg-white rounded-lg shadow-card p-6 card-hover">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fa fa-shopping-cart text-primary mr-2"></i>
+                        成本输入
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- 产品成本 -->
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <label for="product-cost" class="block text-sm font-medium text-gray-700 label-required">
+                                    产品人民币成本
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="product-cost" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                        step="0.01" min="0" value="100" required>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-gray-500">CNY</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label for="sales-amount" class="block text-sm font-medium text-gray-700 label-required">
+                                    销售金额
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="sales-amount" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                        step="0.01" min="0" value="30" required>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-gray-500">USD</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 头程运费 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    头程运费计算
+                                </label>
+                                <div class="flex space-x-2 mb-2">
+                                    <button type="button" id="weight-calc-btn" class="btn-primary text-sm flex-1">
+                                        按重量计算
+                                    </button>
+                                    <button type="button" id="volume-calc-btn" class="btn-secondary text-sm flex-1">
+                                        按体积计算
+                                    </button>
+                                </div>
+                                
+                                <!-- 重量计算表单 -->
+                                <div id="weight-calc-form" class="space-y-2">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="relative">
+                                            <input type="number" id="weight" 
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                                step="0.01" min="0" value="2">
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <span class="text-gray-500">kg</span>
+                                            </div>
+                                        </div>
+                                        <div class="relative">
+                                            <input type="number" id="weight-price" 
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                                step="0.01" min="0" value="8">
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <span class="text-gray-500">CNY/kg</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm font-medium text-blue-800">头程运费 (USD)</span>
+                                            <span id="first-leg-cost-usd-weight" class="text-base font-bold text-primary">2.26 USD</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-gray-500">头程运费将自动转换为美元计算</p>
+                                </div>
+                                
+                                <!-- 体积计算表单 (默认隐藏) -->
+                                <div id="volume-calc-form" class="space-y-2 hidden">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="relative">
+                                            <input type="number" id="volume" 
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                                step="0.0001" min="0" value="0.03">
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <span class="text-gray-500">m³</span>
+                                            </div>
+                                        </div>
+                                        <div class="relative">
+                                            <input type="number" id="volume-price" 
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                                step="0.01" min="0" value="1000">
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <span class="text-gray-500">CNY/m³</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm font-medium text-blue-800">头程运费 (USD)</span>
+                                            <span id="first-leg-cost-usd-volume" class="text-base font-bold text-primary">4.25 USD</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-gray-500">头程运费将自动转换为美元计算</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 其他费用 -->
+                        <div class="space-y-4">
+                            <div class="space-y-2">
+                                <label for="last-leg-fee" class="block text-sm font-medium text-gray-700">
+                                    尾程费用
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="last-leg-fee" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                        step="0.01" min="0" value="5">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-gray-500">USD</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label for="warehouse-fee" class="block text-sm font-medium text-gray-700">
+                                    仓库操作费用
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="warehouse-fee" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                        step="0.01" min="0" value="2">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-gray-500">USD</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label for="peak-season-fee" class="block text-sm font-medium text-gray-700">
+                                    旺季附加费
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="peak-season-fee" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                        step="0.01" min="0" value="1">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-gray-500">USD</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 平台佣金 -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    平台佣金
+                                </label>
+                                <div class="flex space-x-2 mb-2">
+                                    <button type="button" id="percentage-commission-btn" class="btn-primary text-sm flex-1">
+                                        百分比
+                                    </button>
+                                    <button type="button" id="fixed-commission-btn" class="btn-secondary text-sm flex-1">
+                                        固定金额
+                                    </button>
+                                </div>
+                                
+                                <!-- 百分比佣金表单 -->
+                                <div id="percentage-commission-form" class="space-y-2">
+                                    <div class="relative">
+                                        <input type="number" id="commission-percentage" 
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                            step="0.1" min="0" max="100" value="15">
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <span class="text-gray-500">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 固定金额佣金表单 (默认隐藏) -->
+                                <div id="fixed-commission-form" class="space-y-2 hidden">
+                                    <div class="relative">
+                                        <input type="number" id="commission-fixed" 
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                            step="0.01" min="0" value="4.5">
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <span class="text-gray-500">USD</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label for="loss-fee" class="block text-sm font-medium text-gray-700">
+                                    损耗费用
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="loss-fee" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                                        step="0.01" min="0" value="0.5">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-gray-500">USD</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧结果区 -->
+            <div class="space-y-6">
+                <!-- 计算结果卡片 -->
+                <div class="bg-white rounded-lg shadow-card p-6 card-hover">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fa fa-line-chart text-primary mr-2"></i>
+                        计算结果
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <!-- 汇率转换结果 -->
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">产品成本 (USD)</span>
+                                <span id="product-cost-usd" class="font-semibold text-gray-800">14.16 USD</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                按当前汇率: <span id="used-rate">7.0639</span> 计算
+                            </div>
+                        </div>
+                        
+                        <!-- 总成本 -->
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">总成本</span>
+                                <span id="total-cost" class="font-semibold text-gray-800">36.50 USD</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 利润 -->
+                        <div class="p-4 bg-success/10 rounded-lg border border-success/20">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">利润</span>
+                                <div class="text-right">
+                                    <div id="profit-usd" class="font-bold text-success text-xl">-6.50 USD</div>
+                                    <div id="profit-cny" class="text-sm text-gray-600">-45.91 CNY</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 利润率 -->
+                        <div class="p-4 bg-danger/10 rounded-lg border border-danger/20">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">利润率</span>
+                                <span id="profit-margin" class="font-bold text-danger text-xl">-21.67%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 计算按钮 -->
+                    <button id="calculate-btn" class="btn-primary w-full mt-6 flex items-center justify-center">
+                        <i class="fa fa-calculator mr-2"></i>
+                        重新计算
+                    </button>
+                </div>
+
+                <!-- 成本分析图表 -->
+                <div class="bg-white rounded-lg shadow-card p-6 card-hover">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fa fa-pie-chart text-primary mr-2"></i>
+                        成本分析
+                    </h2>
+                    
+                    <div class="h-64">
+                        <canvas id="cost-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="bg-white rounded-lg shadow-card p-6 card-hover">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fa fa-file-text-o text-primary mr-2"></i>
+                        数据操作
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <button id="save-data-btn" class="btn-primary w-full flex items-center justify-center">
+                            <i class="fa fa-save mr-2"></i>
+                            保存当前数据
+                        </button>
+                        
+                        <button id="load-data-btn" class="btn-secondary w-full flex items-center justify-center">
+                            <i class="fa fa-folder-open mr-2"></i>
+                            加载已保存数据
+                        </button>
+                        
+                        <button id="share-data-btn" class="btn-success w-full flex items-center justify-center">
+                            <i class="fa fa-share-alt mr-2"></i>
+                            分享当前数据
+                        </button>
+                        
+                        <div class="pt-3 border-t border-gray-200">
+                            <h3 class="text-sm font-medium text-gray-700 mb-3">导出报告</h3>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <button id="export-excel-btn" class="btn-secondary w-full flex items-center justify-center text-sm">
+                                    <i class="fa fa-file-excel-o mr-1"></i>
+                                    导出Excel
+                                </button>
+                                
+                                <button id="export-pdf-btn" class="btn-secondary w-full flex items-center justify-center text-sm">
+                                    <i class="fa fa-file-pdf-o mr-1"></i>
+                                    导出PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 保存数据模态框 -->
+    <div id="save-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">保存数据</h3>
+                <button id="close-save-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="save-name" class="block text-sm font-medium text-gray-700 mb-1">
+                        数据名称
+                    </label>
+                    <input type="text" id="save-name" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                        placeholder="例如: 产品A-20251204">
+                </div>
+                
+                <div>
+                    <label for="save-description" class="block text-sm font-medium text-gray-700 mb-1">
+                        描述 (可选)
+                    </label>
+                    <textarea id="save-description" rows="3"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" 
+                        placeholder="添加一些描述信息..."></textarea>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="sync-to-cloud-on-save" class="h-4 w-4 text-primary border-gray-300 rounded">
+                    <label for="sync-to-cloud-on-save" class="ml-2 block text-sm text-gray-700">
+                        同时同步到云端（需配置KV）
+                    </label>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6">
+                <button id="cancel-save" class="btn-secondary">
+                    取消
+                </button>
+                <button id="confirm-save" class="btn-primary">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载数据模态框 -->
+    <div id="load-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">加载数据</h3>
+                <button id="close-load-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="flex mb-4">
+                <button id="load-local-data-tab" class="btn-primary flex-1 text-sm">
+                    本地数据
+                </button>
+                <button id="load-cloud-data-tab" class="btn-secondary flex-1 text-sm">
+                    云端数据
+                </button>
+            </div>
+            
+            <div class="max-h-80 overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                名称
+                            </th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                保存时间
+                            </th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                存储位置
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="saved-data-list" class="bg-white divide-y divide-gray-200">
+                        <!-- 数据列表动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6">
+                <button id="cancel-load" class="btn-secondary">
+                    取消
+                </button>
+                <button id="confirm-load" class="btn-primary">
+                    加载选中
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知提示 -->
+    <div id="notification" class="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm transform translate-y-10 opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-start">
+            <div id="notification-icon" class="flex-shrink-0 text-success">
+                <i class="fa fa-check-circle text-xl"></i>
+            </div>
+            <div class="ml-3 w-0 flex-1">
+                <p id="notification-title" class="text-sm font-medium text-gray-900">
+                    操作成功
+                </p>
+                <p id="notification-message" class="mt-1 text-sm text-gray-500">
+                    数据已成功保存
+                </p>
+            </div>
+            <div class="ml-4 flex-shrink-0 flex">
+                <button id="close-notification" class="inline-flex text-gray-400 hover:text-gray-500">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

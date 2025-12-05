@@ -1,0 +1,15 @@
+{
+  "name": "profit-calc-proxy",
+  "version": "1.0.0",
+  "description": "Profit Calculator Worker (Fixer API Proxy + KV Storage)",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "publish": "wrangler publish"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
