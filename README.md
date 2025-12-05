@@ -14,6 +14,22 @@ A comprehensive web application for calculating profits in cross-border e-commer
 - 导出Excel和PDF格式的功能 / Export functionality to Excel and PDF formats
 - 数据共享功能 / Data sharing capabilities
 
+## 界面预览 / Interface Preview
+
+以下是我们应用程序的界面截图：
+
+<div align="center">
+  <figure>
+    <img src="img/zh/ScreenShot_2025-12-05_102122_219.png" alt="利润计算界面示例1" width="45%" />
+    <figcaption>利润计算界面示例1</figcaption>
+  </figure>
+  
+  <figure>
+    <img src="img/zh/ScreenShot_2025-12-05_102154_108.png" alt="利润计算界面示例2" width="45%" />
+    <figcaption>利润计算界面示例2</figcaption>
+  </figure>
+</div>
+
 ## 项目结构 / Project Structure
 
 ```

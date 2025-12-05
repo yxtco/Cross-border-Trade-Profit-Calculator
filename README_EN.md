@@ -11,6 +11,22 @@ A comprehensive web application for calculating profits in cross-border e-commer
 - Export functionality to Excel and PDF formats
 - Data sharing capabilities
 
+## Interface Preview
+
+Below are screenshots of our application interface:
+
+<div align="center">
+  <figure>
+    <img src="img/zh/ScreenShot_2025-12-05_102122_219.png" alt="Profit Calculation Interface Example 1" width="45%" />
+    <figcaption>Profit Calculation Interface Example 1</figcaption>
+  </figure>
+  
+  <figure>
+    <img src="img/zh/ScreenShot_2025-12-05_102154_108.png" alt="Profit Calculation Interface Example 2" width="45%" />
+    <figcaption>Profit Calculation Interface Example 2</figcaption>
+  </figure>
+</div>
+
 ## Project Structure
 
 ```

@@ -7,3 +7,7 @@ This directory contains screenshots and images for the English version of the ap
 - Use descriptive filenames in English
 - Format: feature_description_date.png
 - Example: profit_calculation_20251205.png
+
+## Sample Images
+
+Currently, there are no English interface screenshots in this directory. Please add English versions of the application interface screenshots here.
